@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blog | Infinitas — Franquia Oficial Fini em Sete Lagoas</title>
+<title>Abriu, leu, sorriu | Blog da Fini Sete Lagoas</title>
 <meta name="description" content="Guias, curiosidades e dicas sobre os produtos Fini e sobre o Carrinho da Fini para festas e eventos em Sete Lagoas e na Grande BH.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -607,7 +607,7 @@ var POSTS = [
   }
 
   function renderLista(){
-    document.title = 'Blog | Infinitas — Franquia Oficial Fini em Sete Lagoas';
+    document.title = 'Abriu, leu, sorriu | Blog da Fini Sete Lagoas';
 
     var chips = categorias().map(function(c){
       return '<button class="chip" data-cat="' + esc(c) + '" aria-pressed="' + (c === filtroAtual) + '">' + esc(c) + '</button>';
@@ -624,8 +624,8 @@ var POSTS = [
     app.innerHTML = '' +
       '<section class="capa">' +
         '<div class="container">' +
-          '<h1>Blog da <span>Infinitas</span></h1>' +
-          '<p>Guias sobre os produtos Fini, ideias de combinação para cada tipo de festa e tudo o que rola no Carrinho da Fini em Sete Lagoas.</p>' +
+          '<h1>Abriu, leu, <span>sorriu</span></h1>' +
+          '<p>O blog da Fini Sete Lagoas: guias sobre os produtos, ideias de combinação para cada tipo de festa e tudo o que rola no Carrinho da Fini.</p>' +
           '<div class="filtros">' + chips + '</div>' +
         '</div>' +
       '</section>' +
@@ -645,7 +645,7 @@ var POSTS = [
     var p = POSTS.filter(function(x){ return x.slug === slug; })[0];
     if(!p){ location.hash = ''; return; }
 
-    document.title = p.titulo + ' | Blog da Infinitas';
+    document.title = p.titulo + ' | Abriu, leu, sorriu';
     var d = document.querySelector('meta[name="description"]');
     if(d) d.setAttribute('content', p.resumo);
 
