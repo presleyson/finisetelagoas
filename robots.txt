@@ -1,0 +1,8 @@
+# robots.txt — Infinitas (franquia oficial Fini em Sete Lagoas)
+# Coloque este arquivo na raiz do site, junto do index.html.
+# Troque o domínio abaixo pelo endereço real antes de publicar.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://www.infinitas.kids/sitemap.xml

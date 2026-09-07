@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap — Infinitas (franquia oficial Fini em Sete Lagoas)
+  Gerado em 2026-09-07
+
+  ANTES DE PUBLICAR: troque https://www.infinitas.kids pelo endereço real do site,
+  em todas as linhas <loc>. O domínio precisa ser exatamente igual ao que aparece
+  no navegador (com ou sem "www", http ou https) — se divergir, o Google ignora.
+
+  Onde colocar: na raiz do site, junto do index.html, com o nome sitemap.xml
+  (ex.: https://www.infinitas.kids/sitemap.xml).
+
+  Os posts do blog usam endereço com "#" (blog.html#post/nome-do-post). Buscadores
+  tratam tudo depois do "#" como parte da mesma página, então esses endereços não
+  entram no sitemap — o blog.html já cobre todos eles. Para que cada post seja
+  indexado sozinho, cada um precisaria virar um arquivo .html próprio.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://www.infinitas.kids/</loc>
+    <lastmod>2026-09-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://www.infinitas.kids/index.html</loc>
+    <lastmod>2026-09-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.infinitas.kids/blog.html</loc>
+    <lastmod>2026-09-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>
