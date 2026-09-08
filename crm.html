@@ -222,6 +222,8 @@ table.data td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-
 #tip{position:fixed;z-index:90;background:var(--ink);color:var(--ground);font-size:12px;font-family:var(--mono);padding:6px 9px;border-radius:var(--r-s);pointer-events:none;opacity:0;transition:opacity .1s;white-space:nowrap;box-shadow:var(--shadow-pop)}
 #tip.on{opacity:1}
 
+.dsgrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:22px;align-items:start}
+@media(max-width:880px){.dsgrid{grid-template-columns:1fr}}
 .lock{max-width:400px;margin:60px auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:32px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-card)}
 .lock h2{font-size:20px}
 .lock p{margin:0;font-size:13.5px;color:var(--ink-2)}
@@ -247,6 +249,7 @@ table.data td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-
     <button class="tab" data-go="form" aria-current="true">Nova solicitação</button>
     <button class="tab" data-go="pipeline">Pipeline</button>
     <button class="tab" data-go="relatorios">Relatórios</button>
+    <button class="tab" data-go="deslocamento">Deslocamento</button>
     <button class="iconbtn" id="authbtn" style="margin-left:8px">Entrar</button>
   </nav>
 </div></div>
@@ -326,6 +329,7 @@ table.data td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-
 
 <!-- ============ RELATÓRIOS ============ -->
 <section class="view wrap" id="view-relatorios"></section>
+<section class="view wrap" id="view-deslocamento"></section>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true"></aside>
@@ -348,6 +352,15 @@ var SUPABASE_URL = "https://fgxpbxqvlztebedtshmr.supabase.co";
 var SUPABASE_KEY = "sb_publishable_gBKaZSzOylbAC6hC9uNTkw_iqxuo8qv";
 
 var WA = "5531998065179";  // WhatsApp da Infinitas
+
+/* Chave do Google Maps (Routes API) — opcional.
+   Em branco, a calculadora funciona com a quilometragem digitada à mão.
+   Com uma chave de navegador restrita ao domínio infinitas.kids, o botão
+   "Calcular pelo Maps" preenche a distância e detecta pedágio sozinho. */
+var GOOGLE_MAPS_KEY = "";
+
+/* Ponto de partida padrão do carrinho */
+var ORIGEM_PADRAO = "Av. Otávio Campelo Ribeiro, 2801 - Eldorado, Sete Lagoas - MG";
 
 /* ==================== nada abaixo precisa ser editado ==================== */
 (function(){
@@ -405,6 +418,7 @@ function maskTel(v){
   return "("+d.slice(0,2)+") "+d.slice(2,7)+"-"+d.slice(7);
 }
 function rows(){ return demo ? leads.concat(DEMO) : leads; }
+function brl2(v){ if(v==null||v==="")return "—"; return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2}); }
 function erroTexto(e){
   if(!e) return "Erro desconhecido.";
   var m=String(e.message||e);
@@ -455,7 +469,7 @@ async function iniciarSessao(){
 /* ---------------- navegação ---------------- */
 function go(v){ view=v; paint(); render(); }
 function paint(){
-  ["form","pipeline","relatorios"].forEach(function(v){
+  ["form","pipeline","relatorios","deslocamento"].forEach(function(v){
     var n=$("#view-"+v); if(n) n.classList.toggle("on", v===view);
   });
   document.querySelectorAll(".tab").forEach(function(b){
@@ -475,6 +489,7 @@ $("#authbtn").addEventListener("click", async function(){
 function render(){
   if(view==="pipeline")   { authed?renderPipeline():renderLogin("pipeline"); }
   if(view==="relatorios") { authed?renderRelatorios():renderLogin("relatorios"); }
+  if(view==="deslocamento"){ authed?renderDeslocamento():renderLogin("deslocamento"); }
   if(openId) renderDrawer();
 }
 
@@ -935,6 +950,231 @@ function baixarCSV(L){
   a.href=url; a.download="carrinho-fini-"+new Date().toISOString().slice(0,10)+".csv";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+
+
+/* ================= calculadora de custo de deslocamento =================
+   Não grava nada no banco. Só o preço do combustível e o consumo médio
+   ficam guardados no navegador de quem usa, para não redigitar toda vez. */
+var desl = {
+  origem: ORIGEM_PADRAO,
+  destino: "",
+  km: null,          // ida + volta
+  kmAuto: false,     // veio do Maps?
+  precoL: null,
+  consumo: 9,
+  pedagio: false,
+  vPedagio: null,
+  pedagioAuto: false,
+  duracao: "",
+  erro: "",
+  calculando: false
+};
+try{
+  var mem = JSON.parse(localStorage.getItem("crmfini.desl") || "{}");
+  if(mem.precoL)  desl.precoL  = Number(mem.precoL);
+  if(mem.consumo) desl.consumo = Number(mem.consumo);
+}catch(e){}
+function deslLembrar(){
+  try{ localStorage.setItem("crmfini.desl", JSON.stringify({precoL:desl.precoL, consumo:desl.consumo})); }catch(e){}
+}
+
+function deslConta(){
+  var km = Number(desl.km), preco = Number(desl.precoL), cons = Number(desl.consumo);
+  if(!(km > 0) || !(preco > 0) || !(cons > 0)) return null;
+  var litros = km / cons;
+  var comb = litros * preco;
+  var ped = desl.pedagio ? (Number(desl.vPedagio) || 0) : 0;
+  return {litros:litros, comb:comb, ped:ped, total:comb + ped, porKm:(comb + ped) / km};
+}
+
+function renderDeslocamento(){
+  var host = $("#view-deslocamento");
+  var r = deslConta();
+  var temChave = !!(GOOGLE_MAPS_KEY && GOOGLE_MAPS_KEY.length > 20);
+  var abertos = rows().filter(function(l){ return (l.etapa||"novo") !== "perdido"; })
+                      .sort(function(a,b){ return String(a.data||"").localeCompare(String(b.data||"")); });
+
+  host.innerHTML =
+    '<div class="bar"><div><p class="eyebrow">Deslocamento</p>'+
+      '<h1 style="font-size:26px;margin:2px 0 0">Quanto custa levar o carrinho até lá</h1></div></div>'+
+    '<p class="lede" style="margin:-8px 0 22px">Estimativa do custo de ida e volta para embutir no orçamento. '+
+      'Nada aqui é salvo no cadastro da festa — é uma conta de apoio.</p>'+
+
+    '<div class="dsgrid">'+
+
+    '<div class="paper">'+
+      '<div class="paper-sec">'+
+        '<header><h3>O trajeto</h3><span>ida e volta</span></header>'+
+        '<div class="field"><label for="ds-origem">Saindo de</label>'+
+          '<input id="ds-origem" type="text" value="'+esc(desl.origem)+'"></div>'+
+        '<div class="field"><label for="ds-destino">Indo até</label>'+
+          '<input id="ds-destino" type="text" placeholder="Endereço, bairro ou cidade da festa" value="'+esc(desl.destino)+'">'+
+          (abertos.length
+            ? '<select id="ds-lead" style="margin-top:7px"><option value="">Ou puxe de uma solicitação do pipeline…</option>'+
+              abertos.map(function(l){
+                return '<option value="'+esc(l.id)+'">'+esc(l.responsavel||"—")+' · '+esc(l.cidade||"")+' · '+dataBR(l.data)+'</option>';
+              }).join("")+'</select>'
+            : '')+
+        '</div>'+
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+          '<button class="btn ghost sm" id="ds-calc"'+(desl.calculando?" disabled":"")+'>'+
+            (desl.calculando ? "Consultando o Maps…" : "Calcular pelo Google Maps")+'</button>'+
+          (temChave ? '' : '<span class="hint" style="color:var(--ink-3);font-size:12.5px">Sem chave do Maps configurada — digite a distância abaixo.</span>')+
+        '</div>'+
+        (desl.erro ? '<p class="err">'+esc(desl.erro)+'</p>' : '')+
+        (desl.duracao ? '<p style="margin:0;font-size:12.5px;color:var(--ink-3)">Tempo estimado no trânsito livre: '+esc(desl.duracao)+' (ida e volta).</p>' : '')+
+      '</div>'+
+
+      '<div class="paper-sec">'+
+        '<header><h3>Os números</h3><span>ajuste o que precisar</span></header>'+
+        '<div class="grid3">'+
+          '<div class="field"><label for="ds-km">Distância total (km)</label>'+
+            '<input id="ds-km" type="number" min="0" step="0.1" value="'+(desl.km==null?"":desl.km)+'">'+
+            '<span class="hint">'+(desl.kmAuto?"ida + volta, pelo Maps":"ida + volta")+'</span></div>'+
+          '<div class="field"><label for="ds-preco">Combustível (R$/litro)</label>'+
+            '<input id="ds-preco" type="number" min="0" step="0.01" placeholder="6,19" value="'+(desl.precoL==null?"":desl.precoL)+'"></div>'+
+          '<div class="field"><label for="ds-consumo">Consumo (km/L)</label>'+
+            '<input id="ds-consumo" type="number" min="0.1" step="0.1" value="'+(desl.consumo==null?"":desl.consumo)+'">'+
+            '<span class="hint">padrão: 9</span></div>'+
+        '</div>'+
+        '<label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer;padding-top:4px">'+
+          '<input id="ds-tem-pedagio" type="checkbox" style="width:auto;margin-top:3px"'+(desl.pedagio?" checked":"")+'>'+
+          '<span><b style="font-size:13.5px">Há pedágio no trajeto?</b>'+
+          '<span style="display:block;font-size:12.5px;color:var(--ink-3)">'+
+          (desl.pedagioAuto ? "O Maps encontrou pedágio nesta rota." : "Marque para informar o valor de ida e volta.")+
+          '</span></span></label>'+
+        (desl.pedagio
+          ? '<div class="field" style="max-width:280px"><label for="ds-pedagio">Valor do pedágio — ida e volta (R$)</label>'+
+            '<input id="ds-pedagio" type="number" min="0" step="0.10" value="'+(desl.vPedagio==null?"":desl.vPedagio)+'">'+
+            (desl.pedagioAuto ? '<span class="hint">estimativa do Google — confirme com o valor real da praça</span>' : '')+
+            '</div>'
+          : '')+
+      '</div>'+
+    '</div>'+
+
+    '<div>'+ deslResultado(r) +'</div>'+
+    '</div>';
+
+  /* --- eventos --- */
+  var liga = function(id, campo, num){
+    var n = $("#"+id); if(!n) return;
+    n.addEventListener("input", function(){
+      desl[campo] = n.value === "" ? (num?null:"") : (num ? Number(n.value) : n.value);
+      if(campo==="km") desl.kmAuto=false;
+      if(campo==="vPedagio") desl.pedagioAuto=false;
+      if(campo==="precoL" || campo==="consumo") deslLembrar();
+      $("#ds-saida").innerHTML = deslResultado(deslConta());
+    });
+  };
+  liga("ds-origem","origem",false); liga("ds-destino","destino",false);
+  liga("ds-km","km",true); liga("ds-preco","precoL",true);
+  liga("ds-consumo","consumo",true); liga("ds-pedagio","vPedagio",true);
+
+  var sel = $("#ds-lead");
+  if(sel) sel.addEventListener("change", function(){
+    var l = rows().filter(function(x){ return x.id===sel.value; })[0];
+    if(!l) return;
+    desl.destino = [l.local_festa, l.cidade].filter(Boolean).join(", ") + " - MG";
+    desl.km = null; desl.kmAuto = false; desl.duracao = ""; desl.erro = "";
+    renderDeslocamento();
+  });
+
+  var chk = $("#ds-tem-pedagio");
+  chk.addEventListener("change", function(){
+    desl.pedagio = chk.checked;
+    if(!chk.checked){ desl.vPedagio = null; desl.pedagioAuto = false; }
+    renderDeslocamento();
+  });
+
+  $("#ds-calc").addEventListener("click", deslCalcularMaps);
+}
+
+function deslResultado(r){
+  if(!r){
+    return '<div id="ds-saida"><div class="panel" style="margin:0"><div class="pad">'+
+      '<p class="eyebrow" style="margin:0 0 10px">Resultado</p>'+
+      '<p style="margin:0;color:var(--ink-3);font-size:13.5px">Preencha a distância, o preço do litro e o consumo do veículo para ver o custo.</p>'+
+      '</div></div></div>';
+  }
+  return '<div id="ds-saida"><div class="panel" style="margin:0">'+
+    '<div class="pad">'+
+      '<p class="eyebrow" style="margin:0 0 4px">Custo do deslocamento</p>'+
+      '<p style="font-family:var(--disp);font-size:38px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1.05">'+brl2(r.total)+'</p>'+
+      '<p style="margin:4px 0 18px;font-size:12.5px;color:var(--ink-3);font-family:var(--mono)">'+
+        (r.total/Number(desl.km)).toFixed(2).replace(".",",")+' por km rodado</p>'+
+      '<dl class="readout">'+
+        '<dt>Distância</dt><dd>'+Number(desl.km).toLocaleString("pt-BR",{maximumFractionDigits:1})+' km (ida e volta)</dd>'+
+        '<dt>Combustível</dt><dd>'+r.litros.toLocaleString("pt-BR",{maximumFractionDigits:1})+' L × '+brl2(desl.precoL)+' = <b>'+brl2(r.comb)+'</b></dd>'+
+        '<dt>Pedágio</dt><dd>'+(desl.pedagio ? brl2(r.ped) : "sem pedágio")+'</dd>'+
+      '</dl>'+
+    '</div>'+
+    '<div class="pad" style="border-top:1px solid var(--line);padding-top:14px">'+
+      '<p style="margin:0;font-size:12.5px;color:var(--ink-3)">Só combustível e pedágio. Não entra desgaste do veículo, '+
+      'estacionamento nem o tempo da equipe — some isso à parte se for cobrar do cliente.</p>'+
+    '</div>'+
+  '</div></div>';
+}
+
+async function deslCalcularMaps(){
+  desl.erro = "";
+  if(!GOOGLE_MAPS_KEY || GOOGLE_MAPS_KEY.length < 20){
+    desl.erro = "Nenhuma chave do Google Maps configurada neste site. Preencha GOOGLE_MAPS_KEY no topo do crm.html, ou digite a distância à mão.";
+    renderDeslocamento(); return;
+  }
+  if(!desl.origem || !desl.destino){
+    desl.erro = "Informe de onde sai e para onde vai.";
+    renderDeslocamento(); return;
+  }
+  desl.calculando = true; renderDeslocamento();
+  try{
+    var res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_MAPS_KEY,
+        "X-Goog-FieldMask": "routes.distanceMeters,routes.duration,routes.travelAdvisory.tollInfo"
+      },
+      body: JSON.stringify({
+        origin:        {address: desl.origem},
+        destination:   {address: desl.origem},
+        intermediates: [{address: desl.destino}],
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+        extraComputations: ["TOLLS"],
+        routeModifiers: {vehicleInfo: {emissionType: "GASOLINE"}},
+        languageCode: "pt-BR", units: "METRIC", regionCode: "BR"
+      })
+    });
+    var j = await res.json();
+    if(j.error){ throw new Error(j.error.message || "O Google recusou a consulta."); }
+    var rota = (j.routes || [])[0];
+    if(!rota){ throw new Error("O Google não encontrou uma rota de carro entre esses dois pontos. Confira os endereços."); }
+
+    desl.km = Math.round((rota.distanceMeters / 1000) * 10) / 10;
+    desl.kmAuto = true;
+
+    if(rota.duration){
+      var seg = parseInt(String(rota.duration).replace("s",""), 10) || 0;
+      var h = Math.floor(seg/3600), m = Math.round((seg%3600)/60);
+      desl.duracao = (h ? h+"h" : "") + (m ? (h?" ":"")+m+"min" : (h?"":"menos de 1min"));
+    }
+
+    var pedagios = rota.travelAdvisory && rota.travelAdvisory.tollInfo;
+    var precos = pedagios && pedagios.estimatedPrice;
+    if(precos && precos.length){
+      desl.pedagio = true; desl.pedagioAuto = true;
+      var brlItem = precos.filter(function(p){ return p.currencyCode === "BRL"; })[0] || precos[0];
+      var v = Number(brlItem.units || 0) + Number(brlItem.nanos || 0)/1e9;
+      desl.vPedagio = v > 0 ? Math.round(v*100)/100 : desl.vPedagio;
+    } else if(pedagios){
+      desl.pedagio = true; desl.pedagioAuto = true;
+    }
+  }catch(e){
+    desl.erro = String(e.message || e);
+  }
+  desl.calculando = false;
+  renderDeslocamento();
 }
 
 /* ---------------- início ---------------- */
