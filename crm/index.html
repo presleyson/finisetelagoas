@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="index,follow">
 <meta name="description" content="Solicite o orçamento do Carrinho da Fini para a sua festa. Infinitas — franquia oficial Fini em Sete Lagoas, atende toda a Grande BH.">
-<title>CRM do Carrinho Fini</title>
+<title>Orçamento do Carrinho da Fini — Infinitas Sete Lagoas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -66,7 +66,7 @@ a{color:var(--accent)}
 .topbar{position:sticky;top:0;z-index:40;background:var(--ground);border-bottom:1px solid var(--line)}
 @supports (backdrop-filter:blur(4px)){.topbar{background:color-mix(in srgb, var(--ground) 86%, transparent);backdrop-filter:blur(10px)}}
 .topbar-in{display:flex;align-items:center;gap:18px;height:62px}
-.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;padding:0;cursor:pointer;color:inherit;text-align:left;font:inherit}
 .brand svg{flex:none}
 .brand-txt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
 .brand-txt b{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:-.02em}
@@ -235,7 +235,7 @@ table.data td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-
 </head>
 <body>
 <div class="topbar"><div class="wrap topbar-in">
-  <div class="brand">
+  <button class="brand" id="gohome" title="Início">
     <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
       <rect x="3" y="9" width="26" height="13" rx="3" fill="var(--accent)"/>
       <path d="M3 13h26" stroke="var(--ground)" stroke-width="1.5" opacity=".55"/>
@@ -244,7 +244,7 @@ table.data td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-
       <path d="M8 9V6h16v3" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>
     </svg>
     <span class="brand-txt"><b>Carrinho Fini</b><span>Infinitas · Sete Lagoas</span></span>
-  </div>
+  </button>
   <nav>
     <button class="tab" data-go="form" aria-current="true">Nova solicitação</button>
     <button class="tab" data-go="pipeline">Pipeline</button>
@@ -474,13 +474,14 @@ function paint(){
   });
   document.querySelectorAll(".tab").forEach(function(b){
     b.setAttribute("aria-current", String(b.dataset.go===view));
-    b.classList.toggle("locked", !authed && b.dataset.go!=="form");
+    b.hidden = !authed;               // visitante não vê as abas internas
   });
   $("#authbtn").textContent = authed ? "Sair" : "Entrar";
   $("#authbtn").title = authed && usuario ? usuario.email : "Acesso da equipe";
   window.scrollTo(0,0);
 }
 document.querySelectorAll(".tab").forEach(function(b){ b.addEventListener("click",function(){ go(b.dataset.go); }); });
+$("#gohome").addEventListener("click", function(){ go("form"); });
 $("#authbtn").addEventListener("click", async function(){
   if(authed){ try{ await sb.auth.signOut(); }catch(e){} toast("Sessão encerrada."); }
   else { go("pipeline"); }
