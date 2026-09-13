@@ -114,7 +114,7 @@ function historico(){
       return `<tr><td class="n">${String(p.numero).padStart(4, "0")}</td><td>${p.lead_id ? `<button class="linkbtn" data-go="lead/${esc(p.lead_id)}">${esc(p.responsavel || "—")}</button>` : esc(p.responsavel || "—")}</td>
         <td>${esc(p.evento || "—")}</td><td class="n">${dataBR(p.data_evento)}</td><td class="n">${p.convidados || "—"}</td><td class="n">${p.kg_total || 0} kg</td><td class="n"><b>${brl2(p.valor_total)}</b></td>
         <td>${select("", STATUS.map(s => [s.id, s.nome]), p.status, `class="ministatus" data-st-prop="${esc(p.id)}" style="--stc:${st.cor}"`)}</td>
-        <td>${p.pdf_url ? `<a href="${esc(p.pdf_url)}" target="_blank" rel="noopener">abrir</a> · <button class="linkbtn" data-wa-prop="${esc(p.id)}">WhatsApp</button>` : '<span style="color:var(--ink-3)">—</span>'}</td></tr>`; }).join("")}</tbody></table></div></div></div>`;
+        <td style="white-space:nowrap">${p.pdf_url ? `<a href="${esc(p.pdf_url)}" target="_blank" rel="noopener">abrir</a> · ` : ""}<button class="linkbtn" data-del-prop="${esc(p.id)}">excluir</button>${p.pdf_url ? ` · <button class="linkbtn" data-wa-prop="${esc(p.id)}">WhatsApp</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div></div></div>`;
 }
 
 function escolherLead(id){
@@ -150,6 +150,7 @@ function ligar(){
   $$("[data-st-prop]", host).forEach(s => s.addEventListener("change", async () => {
     try { await api.salvarProposta(s.dataset.stProp, { status: s.value }); toast("Status atualizado."); recarregarComercial(); } catch (e) { toast(erroTexto(e)); } }));
   $$("[data-wa-prop]", host).forEach(b => b.addEventListener("click", () => { const p = S.propostas.find(x => x.id === b.dataset.waProp); if (p) abrirEnvio(p); }));
+  $$("[data-del-prop]", host).forEach(b => b.addEventListener("click", () => { const p = S.propostas.find(x => x.id === b.dataset.delProp); if (p) confirmarExclusao(p); }));
   ligarMemo();
 }
 function ligarMemo(){
@@ -183,6 +184,27 @@ async function gerar(){
     await api.salvarProposta(prop.id, { pdf_url: url }); prop.pdf_url = url;
     np.salvando = false; await recarregarComercial(); np = nova(); renderPropostas(); abrirEnvio(prop);
   } catch (e) { np.salvando = false; renderPropostas(); toast(erroTexto(e)); }
+}
+
+/* Exclusão com confirmação explícita: nada muda até "Confirmar exclusão". */
+function confirmarExclusao(p){
+  abrirGaveta(`
+    <div class="drawer-head"><div><p class="eyebrow">Proposta ${String(p.numero).padStart(4, "0")}</p><h2>Excluir esta proposta?</h2>
+      <p style="margin:2px 0 0;color:var(--ink-2);font-size:13.5px">Tem certeza de que deseja excluir esta proposta?</p></div><button class="x" data-fechar aria-label="Fechar">×</button></div>
+    <div class="drawer-body">
+      <dl class="readout"><dt>Cliente</dt><dd><b>${esc(p.responsavel || "—")}</b></dd><dt>Evento</dt><dd>${esc(p.evento || "—")} · ${dataBR(p.data_evento)}</dd>
+        <dt>Valor</dt><dd>${brl2(p.valor_total)}</dd><dt>Status</dt><dd>${esc((STATUS.find(s => s.id === p.status) || STATUS[0]).nome)}</dd></dl>
+      <div class="banner">A proposta some da lista e o PDF publicado deixa de existir. Não tem volta — se precisar, gere outra.</div></div>
+    <div class="drawer-foot"><button class="btn danger" id="del-ok">Confirmar exclusão</button><button class="btn ghost sm" data-fechar>Cancelar</button></div>`);
+  $("#del-ok").addEventListener("click", async () => {
+    const btn = $("#del-ok"); btn.disabled = true; btn.textContent = "Excluindo…";
+    try {
+      await api.apagarProposta(p);
+      S.propostas = S.propostas.filter(x => x.id !== p.id);   // some da tela na hora
+      fecharGaveta(); renderPropostas(); toast("Proposta excluída com sucesso.");
+      recarregarComercial();                                    // e confirma com o banco em segundo plano
+    } catch (e) { btn.disabled = false; btn.textContent = "Confirmar exclusão"; toast(erroTexto(e)); }
+  });
 }
 
 export function mensagemWA(p){

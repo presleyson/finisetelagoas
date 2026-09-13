@@ -84,6 +84,12 @@ export async function carregarComercial(){
 }
 export async function criarProposta(d){ return ok(await sb().from("propostas").insert(d).select().single()); }
 export async function salvarProposta(id, patch){ ok(await sb().from("propostas").update(patch).eq("id", id)); }
+export async function apagarProposta(p){
+  ok(await sb().from("propostas").delete().eq("id", p.id));
+  // o PDF publicado sai junto; se o Storage recusar, a proposta já foi apagada e o arquivo só fica órfão
+  const nome = String(p.pdf_url || "").split("/propostas/")[1];
+  if (nome) { try { await sb().storage.from("propostas").remove([decodeURIComponent(nome)]); } catch {} }
+}
 export async function publicarPDF(nome, blob){
   ok(await sb().storage.from("propostas").upload(nome, blob, { contentType: "application/pdf", upsert: true }));
   return sb().storage.from("propostas").getPublicUrl(nome).data.publicUrl;
