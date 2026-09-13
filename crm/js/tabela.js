@@ -10,11 +10,11 @@ const ROTULOS = {
   origem_endereco: "Endereço de saída do carrinho", km_valor: "Valor por km rodado (R$)",
   horas_inclusas: "Horas inclusas no pacote", hora_extra: "Valor da hora extra (R$)",
   atendentes_inclusos: "Atendentes inclusos", atendente_extra_valor: "Valor do atendente extra (R$)",
-  gramas_por_pessoa: "Gramas por pessoa (média)", gramas_saquinho: "Gramas por saquinho (média)",
+  gramas_por_pessoa: "Gramas por pessoa (média)", kg_referencia: "Baleiro de referência p/ quilo avulso (kg)", gramas_saquinho: "Gramas por saquinho (média)",
   validade_dias: "Validade da proposta (dias)", desconto_avista: "Desconto à vista (%)", parcelas_cartao: "Parcelas no cartão",
   whatsapp: "WhatsApp na proposta", email: "E-mail na proposta", site: "Site na proposta", instagram: "Instagram na proposta"
 };
-const PADRAO = { atendentes_inclusos: 1, atendente_extra_valor: 0 };
+const PADRAO = { atendentes_inclusos: 1, atendente_extra_valor: 0, kg_referencia: 18 };
 
 export function renderTabela(){
   const host = $("#view-tabela");
@@ -24,7 +24,7 @@ export function renderTabela(){
     <div class="bar"><div><p class="eyebrow">Tabela comercial</p><h1 style="font-size:26px;margin:2px 0 0">Preços e regras</h1></div><div class="grow"></div>
       <button class="iconbtn" data-go="propostas">Voltar às propostas</button></div>
     <p class="lede" style="margin:-8px 0 22px">Tudo que o sistema usa para calcular sai daqui. Mudou preço, muda em um lugar só e vale para as propostas novas — as já geradas ficam com os valores da época.</p>
-    <div class="panel"><header><h3>Baleiros</h3><p>o preço fechado de cada categoria</p></header><div class="pad"><div class="tablewrap">
+    <div class="panel"><header><h3>Baleiros</h3><p>preço fechado por tamanho; quantidades fora da tabela usam o R$/kg do baleiro de referência (acima dele) ou do maior que couber (abaixo)</p></header><div class="pad"><div class="tablewrap">
       <table class="data"><thead><tr><th>Categoria</th><th>Baleiro</th><th>Valor</th><th>Por kg</th></tr></thead><tbody>${
       S.pacotes.map(p => `<tr><td>${esc(categoria(p.categoria).nome)}</td><td class="n">${Number(p.kg)} kg</td>
         <td class="n"><input class="inline" type="number" step="0.01" min="0" data-pac-val="${esc(p.id)}" value="${Number(p.valor_total)}"></td>

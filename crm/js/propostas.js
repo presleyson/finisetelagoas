@@ -6,9 +6,9 @@ import { ativo } from "./etapas.js";
 import { $, $$, esc, brl2, dataBR, toast, erroTexto, abrirGaveta, fecharGaveta, waLink, select } from "./ui.js";
 import { go } from "./router.js";
 import { recarregarComercial } from "./dados.js";
-import { CATEGORIAS, categoria, kgNecessarios, sugerirPacotes, precificar } from "./motores/precificacao.js";
+import { categoria, precificar } from "./motores/precificacao.js";
 import { calcularRota, temMaps } from "./motores/rota.js";
-import { montarPDF } from "./pdf.js";
+import { montarPDFModelo, preCarregarModelo } from "./pdf-modelo.js";
 import { destinoRota, localProposta } from "./lead.js";
 
 export const STATUS = [
@@ -21,8 +21,8 @@ const cfgNum = (k, pad) => { const v = S.cfg[k]; return (v == null || v === "") 
 const cfgTxt = (k, pad) => { const v = S.cfg[k]; return (v == null || v === "") ? pad : String(v); };
 
 let np = null;
-const nova = () => ({ leadId: "", lead: null, convidados: null, convAuto: false, horas: null, atendentes: null, categoria: "misto",
-                      itens: [], adic: {}, km: null, kmIda: null, duracao: "", desconto: 0, obs: "", calculando: false, erro: "", salvando: false });
+const nova = () => ({ leadId: "", lead: null, convidados: null, convAuto: false, kg: null, horas: null, atendentes: null, categoria: "misto",
+                      adic: {}, km: null, kmIda: null, duracao: "", desconto: 0, obs: "", calculando: false, erro: "", salvando: false });
 const tabela = () => ({ cfg: S.cfg, pacotes: S.pacotes, adicionais: S.adicionais });
 const conta = () => precificar(np, tabela());
 
@@ -30,6 +30,7 @@ export function renderPropostas(){
   const host = $("#view-propostas");
   if (!S.comercialOk) { host.innerHTML = '<div class="empty" style="padding:70px">Carregando a tabela comercial…</div>'; recarregarComercial(); return; }
   if (!np) np = nova();
+  preCarregarModelo();
   if (S.propostaLead) { escolherLead(S.propostaLead); S.propostaLead = null; }
   const r = conta();
   const leadsDisp = rows().filter(ativo).sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
@@ -55,17 +56,16 @@ export function renderPropostas(){
   h += `</div></div>`;
 
   if (np.lead) {
-    h += `<div class="paper"><div class="paper-sec"><header><h3>2. Tipo de balas</h3><span>preço da tabela</span></header><div style="display:flex;flex-direction:column;gap:8px">${
-      CATEGORIAS.map(c => { const sug = sugerirPacotes(S.pacotes, c.id, kgNecessarios(np.convidados, S.cfg));
-        const v = sug.reduce((s, p) => s + Number(p.valor_total), 0), kg = sug.reduce((s, p) => s + Number(p.kg), 0);
-        return `<button class="catbtn${np.categoria === c.id ? " on" : ""}" data-cat="${c.id}"><span class="catn">${c.nome}</span><span class="cats">${c.sub}</span><span class="catv">${brl2(v)} <small>${kg} kg</small></span></button>`; }).join("")}</div></div>
-    <div class="paper-sec"><header><h3>3. Quantidade</h3><span>${np.itens.length ? "ajustada por você" : "sugerida pelo sistema"}</span></header>
-      <p style="margin:0;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 180))} g por pessoa = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b> necessários.` : "Informe a quantidade de convidados para o sistema sugerir os quilos."}</p>
-      <div class="pacotes">${S.pacotes.filter(p => p.categoria === np.categoria).sort((a, b) => Number(a.kg) - Number(b.kg)).map(p => {
-        const q = r.itens.filter(i => i.id === p.id).length;
-        return `<div class="pacrow"><span class="pacn">Baleiro de ${Number(p.kg)} kg</span><span class="pacv mono">${brl2(p.valor_total)}</span>
-          <span class="stepper"><button data-pac="${p.id}" data-d="-1" aria-label="menos">−</button><b>${q}</b><button data-pac="${p.id}" data-d="1" aria-label="mais">+</button></span></div>`; }).join("")}</div>
-      <p style="margin:0;font-size:12.5px;color:var(--ink-3)">Total escolhido: <b>${r.kg} kg</b> — ${brl2(r.balas)}${np.itens.length ? ' · <button class="linkbtn" id="np-auto">voltar à sugestão</button>' : ""}</p></div>
+    h += `<div class="paper"><div class="paper-sec"><header><h3>2. Quantidade de balas</h3><span>${np.kg ? "ajustada por você" : "calculada pelo sistema"}</span></header>
+      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+        <div class="field" style="max-width:150px"><label for="np-kg">Baleiro (kg)</label><input id="np-kg" type="number" min="1" step="1" value="${r.kg}"></div>
+        <p style="margin:0 0 6px;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 180))} g = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b>${r.kg > r.kgNec ? " → arredondado para <b>" + r.kg + " kg</b>" + (r.kgNec < r.kg - 1 ? " (mínimo da tabela)" : "") : ""}.` : "Informe os convidados para o sistema calcular."}${np.kg ? ' · <button class="linkbtn" id="np-kg-auto">voltar ao cálculo</button>' : ""}</p>
+      </div></div>
+    <div class="paper-sec"><header><h3>3. As três modalidades</h3><span>vão todas para a proposta — marque a que vale para o pipeline</span></header><div style="display:flex;flex-direction:column;gap:8px">${
+      r.opcoes.map(o => `<button class="catbtn${np.categoria === o.categoria ? " on" : ""}" data-cat="${o.categoria}"><span class="catn">${esc(o.nome)}</span>
+        <span class="cats">${esc(categoria(o.categoria).sub)}<br>balas ${brl2(o.balas)}${o.exato ? " (baleiro de " + r.kg + " kg)" : " (" + brl2(o.porKg) + "/kg, base " + o.base + " kg)"}</span>
+        <span class="catv">${brl2(o.total)} <small>${r.parcelas}× ${brl2(o.parcela)} · à vista ${brl2(o.avista)}</small></span></button>`).join("")}</div>
+      <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">Os valores já incluem adicionais, horas e atendentes extras, deslocamento e desconto — do jeito que aparecem na página 3 do PDF.</p></div>
     <div class="paper-sec"><header><h3>4. Produtos adicionais</h3><span>vendidos em lotes fechados</span></header><div class="adics">${
       S.adicionais.map(a => { const qtd = Number(np.adic[a.id]) || 0, lotes = qtd ? Math.round(qtd / a.qtd_minima) : 0;
         return `<div class="adicrow${qtd ? " on" : ""}"><span class="adicn">${esc(a.nome)}<small>lote de ${a.qtd_minima} · ${brl2(a.valor_unit)} cada</small></span>
@@ -94,12 +94,13 @@ function memoria(r){
   return `<div id="np-memo"><div class="panel" style="margin:0;position:sticky;top:78px"><div class="pad">
     <p class="eyebrow" style="margin:0 0 4px">Total da proposta</p><p class="memtotal">${brl2(r.total)}</p>
     <p style="margin:2px 0 16px;font-size:12.5px;color:var(--ink-3);font-family:var(--mono)">${r.parcelas}× ${brl2(r.parcela)} &nbsp;·&nbsp; à vista ${brl2(r.avista)} (−${r.pctAvista}%)</p>
-    <div class="mem">${linha("Balas", brl2(r.balas), r.kg + " kg · " + categoria(np.categoria).nome.toLowerCase())}
+    <div class="mem">${linha("Balas", brl2(r.balas), r.kg + " kg · " + categoria(np.categoria).nome.toLowerCase() + " (destaque)")}
       ${r.adic.map(a => linha(esc(a.nome), brl2(a.total), a.qtd + " un × " + brl2(a.unit))).join("")}
       ${r.extras > 0 ? linha("Horas extras", brl2(r.vHoras), r.extras + "h além das " + r.inclusas + "h") : ""}
       ${r.atExtras > 0 ? linha("Atendentes extras", brl2(r.vAtend), r.atExtras + " além da inclusa") : ""}
       ${r.vDesl > 0 ? linha("Deslocamento", brl2(r.vDesl), r.km + " km × " + brl2(r.vKm)) : ""}
       ${r.desc > 0 ? linha("Desconto", "− " + brl2(r.desc), "autorizado") : ""}</div>
+    <div class="mem" style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${r.opcoes.map(o => linha(esc(o.nome), brl2(o.total), r.kg + " kg")).join("")}</div>
     <div class="memfoot"><button class="btn" id="np-gerar"${np.salvando ? " disabled" : ""}>${np.salvando ? "Gerando…" : "Gerar proposta em PDF"}</button><button class="btn ghost sm" id="np-limpar">Recomeçar</button></div></div>
     <div class="pad" style="border-top:1px solid var(--line);padding-top:13px"><p style="margin:0;font-size:12px;color:var(--ink-3)">Já incluso: ${(S.cfg.inclusos || []).map(esc).join(" · ")}.</p></div></div></div>`;
 }
@@ -129,15 +130,12 @@ function ligar(){
   $("#np-lead").addEventListener("change", e => { escolherLead(e.target.value); renderPropostas(); });
   const campo = (id, prop, numero) => { const n = $("#" + id); if (!n) return;
     n.addEventListener("input", () => { np[prop] = n.value === "" ? (numero ? null : "") : (numero ? Number(n.value) : n.value);
-      if (prop === "convidados") { np.convAuto = false; np.itens = []; renderPropostas(); return; } re(); }); };
-  campo("np-conv", "convidados", true); campo("np-horas", "horas", true); campo("np-atend", "atendentes", true);
+      if (prop === "convidados") { np.convAuto = false; np.kg = null; renderPropostas(); return; }
+      if (prop === "kg") { renderPropostas(); const n2 = $("#np-kg"); if (n2) { n2.focus(); } return; } re(); }); };
+  campo("np-conv", "convidados", true); campo("np-kg", "kg", true); campo("np-horas", "horas", true); campo("np-atend", "atendentes", true);
   campo("np-km", "km", true); campo("np-desc", "desconto", true); campo("np-obs", "obs", false);
-  $$("[data-cat]", host).forEach(b => b.addEventListener("click", () => { np.categoria = b.dataset.cat; np.itens = []; renderPropostas(); }));
-  $$("[data-pac]", host).forEach(b => b.addEventListener("click", () => {
-    const base = conta().itens.slice(); const p = S.pacotes.find(x => x.id === b.dataset.pac);
-    if (Number(b.dataset.d) > 0) base.push(p); else { const i = base.map(x => x.id).lastIndexOf(p.id); if (i >= 0) base.splice(i, 1); }
-    np.itens = base; renderPropostas(); }));
-  const auto = $("#np-auto"); if (auto) auto.addEventListener("click", () => { np.itens = []; renderPropostas(); });
+  $$("[data-cat]", host).forEach(b => b.addEventListener("click", () => { np.categoria = b.dataset.cat; renderPropostas(); }));
+  const auto = $("#np-kg-auto"); if (auto) auto.addEventListener("click", () => { np.kg = null; renderPropostas(); });
   $$("[data-adic]", host).forEach(b => b.addEventListener("click", () => {
     const a = S.adicionais.find(x => x.id === b.dataset.adic); const novo = (Number(np.adic[a.id]) || 0) + Number(b.dataset.d) * a.qtd_minima;
     if (novo <= 0) delete np.adic[a.id]; else np.adic[a.id] = novo; renderPropostas(); }));
@@ -162,7 +160,7 @@ async function gerar(){
   const r = conta();
   if (!np.lead) { toast("Escolha um lead primeiro."); return; }
   if (!np.convidados) { toast("Informe a quantidade de convidados."); return; }
-  if (!r.itens.length) { toast("Escolha ao menos um baleiro."); return; }
+  if (!(r.kg > 0)) { toast("Informe a quantidade de balas em kg."); return; }
   np.salvando = true; renderPropostas();
   try {
     const l = np.lead, val = new Date(); val.setDate(val.getDate() + cfgNum("validade_dias", 30));
@@ -170,15 +168,15 @@ async function gerar(){
       lead_id: l.id, responsavel: l.responsavel, telefone: l.telefone, email: l.email || null, evento: l.evento,
       local_festa: localProposta(l), cidade: l.cidade, data_evento: l.data || null, horario: l.horario || null,
       convidados: np.convidados, horas: r.horas, categoria: np.categoria, kg_total: r.kg,
-      pacotes: r.itens.map(p => ({ kg: Number(p.kg), valor: Number(p.valor_total) })), valor_balas: r.balas,
+      pacotes: [{ kg: r.kg, valor: r.balas }], valor_balas: r.balas,
+      opcoes: r.opcoes.map(o => ({ categoria: o.categoria, nome: o.nome, balas: o.balas, total: o.total, parcela: o.parcela, avista: o.avista })),
       adicionais: r.adic.map(a => ({ nome: a.nome, qtd: a.qtd, unit: a.unit, total: a.total })), valor_adicionais: r.vAdic,
       horas_extras: r.extras, valor_horas: r.vHoras,
       distancia_km: r.km || null, duracao_texto: np.duracao || null, valor_km: r.vKm, valor_deslocamento: r.vDesl,
       desconto: r.desc, valor_total: r.total, observacoes: np.obs || null, validade: val.toISOString().slice(0, 10), status: "gerada"
     };
     const prop = await api.criarProposta(linha);
-    const extra = { atendentes_extras: r.atExtras, valor_atendentes: r.vAtend };
-    const blob = montarPDF({ ...prop, ...extra }, S.cfg);
+    const blob = await montarPDFModelo(prop, S.cfg);
     const nome = `proposta-${String(prop.numero).padStart(4, "0")}-${prop.id.slice(0, 8)}.pdf`;
     const url = await api.publicarPDF(nome, blob);
     await api.salvarProposta(prop.id, { pdf_url: url }); prop.pdf_url = url;
@@ -189,7 +187,9 @@ async function gerar(){
 export function mensagemWA(p){
   const primeiro = String(p.responsavel || "").split(" ")[0];
   return `Olá, ${primeiro}! Tudo bem?\n\nSegue a proposta comercial do Carrinho da Fini para ${p.evento || "a sua festa"}${p.data_evento ? ", no dia " + dataBR(p.data_evento) : ""}.\n\n` +
-    `Valor total: ${brl2(p.valor_total)}\nProposta completa em PDF: ${p.pdf_url || "(link indisponível)"}\n\nA proposta vale até ${dataBR(p.validade)}. Qualquer dúvida, é só me chamar por aqui!`;
+    `Baleiro de ${p.kg_total} kg de balas Fini, nas três modalidades:\n` +
+    (p.opcoes && p.opcoes.length ? p.opcoes.map(o => `• ${o.nome}: ${brl2(o.total)}`).join("\n") : `• Valor: ${brl2(p.valor_total)}`) +
+    `\n\nProposta completa em PDF: ${p.pdf_url || "(link indisponível)"}\n\nA proposta vale até ${dataBR(p.validade)}. Qualquer dúvida, é só me chamar por aqui!`;
 }
 export function abrirEnvio(p){
   abrirGaveta(`
@@ -197,7 +197,7 @@ export function abrirEnvio(p){
       <p style="margin:2px 0 0;color:var(--ink-2);font-size:13.5px">Confira antes de mandar.</p></div><button class="x" data-fechar aria-label="Fechar">×</button></div>
     <div class="drawer-body">
       <dl class="readout"><dt>Cliente</dt><dd><b>${esc(p.responsavel || "—")}</b></dd><dt>WhatsApp</dt><dd class="mono">${esc(p.telefone || "—")}</dd>
-        <dt>Evento</dt><dd>${esc(p.evento || "—")} · ${dataBR(p.data_evento)}</dd><dt>Valor total</dt><dd><b style="color:var(--accent);font-size:16px">${brl2(p.valor_total)}</b></dd>
+        <dt>Evento</dt><dd>${esc(p.evento || "—")} · ${dataBR(p.data_evento)}</dd><dt>Valores</dt><dd>${(p.opcoes && p.opcoes.length ? p.opcoes : [{ nome: "Total", total: p.valor_total }]).map(o => `<span style="display:block"><b style="color:var(--accent)">${brl2(o.total)}</b> <small style="color:var(--ink-3)">${esc(o.nome)}</small></span>`).join("")}</dd>
         <dt>Validade</dt><dd>${dataBR(p.validade)}</dd></dl>
       ${p.pdf_url ? `<div class="banner"><span>O PDF está publicado. <a href="${esc(p.pdf_url)}" target="_blank" rel="noopener">Abrir para conferir</a> antes de enviar.</span></div>` : '<div class="banner">Esta proposta ainda não tem PDF publicado.</div>'}
       <div class="field"><label for="wa-msg">Mensagem que o cliente vai receber</label><textarea id="wa-msg" style="min-height:150px">${esc(mensagemWA(p))}</textarea>
