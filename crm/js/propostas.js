@@ -23,7 +23,7 @@ const cfgTxt = (k, pad) => { const v = S.cfg[k]; return (v == null || v === "") 
 let np = null;
 const nova = () => ({ leadId: "", lead: null, convidados: null, convAuto: false, kg: null, horas: null, atendentes: null, categoria: "misto",
                       adic: {}, km: null, kmIda: null, duracao: "", desconto: 0, obs: "", calculando: false, erro: "", salvando: false });
-const tabela = () => ({ cfg: S.cfg, pacotes: S.pacotes, adicionais: S.adicionais });
+const tabela = () => ({ cfg: S.cfg, categorias: S.categorias, adicionais: S.adicionais });
 const conta = () => precificar(np, tabela());
 
 export function renderPropostas(){
@@ -56,16 +56,17 @@ export function renderPropostas(){
   h += `</div></div>`;
 
   if (np.lead) {
-    h += `<div class="paper"><div class="paper-sec"><header><h3>2. Quantidade de balas</h3><span>${np.kg ? "ajustada por você" : "calculada pelo sistema"}</span></header>
+    const rotKg = cfgTxt("rotulo_quantidade", "Quantidade de balas");
+    h += `<div class="paper"><div class="paper-sec"><header><h3>2. ${esc(rotKg)}</h3><span>${np.kg ? "ajustada por você" : "calculada pelo sistema"}</span></header>
       <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
-        <div class="field" style="max-width:150px"><label for="np-kg">Baleiro (kg)</label><input id="np-kg" type="number" min="1" step="1" value="${r.kg}"></div>
-        <p style="margin:0 0 6px;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 180))} g = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b>${r.kg > r.kgNec ? " → arredondado para <b>" + r.kg + " kg</b>" + (r.kgNec < r.kg - 1 ? " (mínimo da tabela)" : "") : ""}.` : "Informe os convidados para o sistema calcular."}${np.kg ? ' · <button class="linkbtn" id="np-kg-auto">voltar ao cálculo</button>' : ""}</p>
+        <div class="field" style="max-width:150px"><label for="np-kg">${esc(rotKg)} (kg)</label><input id="np-kg" type="number" min="1" step="1" value="${r.kg}"></div>
+        <p style="margin:0 0 6px;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 180))} g = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b>${r.kg > r.kgNec ? " → arredondado para <b>" + r.kg + " kg</b>" + (r.kgMin >= r.kg && r.kgNec < r.kg - 1 ? " (mínimo da tabela)" : "") : ""}.` : "Informe os convidados para o sistema calcular."}${np.kg ? ' · <button class="linkbtn" id="np-kg-auto">voltar ao cálculo</button>' : ""}</p>
       </div></div>
-    <div class="paper-sec"><header><h3>3. As três modalidades</h3><span>vão todas para a proposta — marque a que vale para o pipeline</span></header><div style="display:flex;flex-direction:column;gap:8px">${
+    <div class="paper-sec"><header><h3>3. As três categorias de balas</h3><span>vão todas para a proposta — marque a que vale para o pipeline</span></header><div style="display:flex;flex-direction:column;gap:8px">${
       r.opcoes.map(o => `<button class="catbtn${np.categoria === o.categoria ? " on" : ""}" data-cat="${o.categoria}"><span class="catn">${esc(o.nome)}</span>
-        <span class="cats">${esc(categoria(o.categoria).sub)}<br>balas ${brl2(o.balas)}${o.exato ? " (baleiro de " + r.kg + " kg)" : " (" + brl2(o.porKg) + "/kg, base " + o.base + " kg)"}</span>
+        <span class="cats">${esc(o.descricao)}${o.descricao ? "<br>" : ""}${r.kg} kg × ${brl2(o.porKg)}/kg = ${brl2(o.balas)}</span>
         <span class="catv">${brl2(o.total)} <small>${r.parcelas}× ${brl2(o.parcela)} · à vista ${brl2(o.avista)}</small></span></button>`).join("")}</div>
-      <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">Os valores já incluem adicionais, horas e atendentes extras, deslocamento e desconto — do jeito que aparecem na página 3 do PDF.</p></div>
+      <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">Os valores já incluem adicionais, horas e atendentes extras, deslocamento e desconto — do jeito que aparecem na página 3 do PDF. Preço por quilo: aba Tabela comercial.</p></div>
     <div class="paper-sec"><header><h3>4. Produtos adicionais</h3><span>vendidos em lotes fechados</span></header><div class="adics">${
       S.adicionais.map(a => { const qtd = Number(np.adic[a.id]) || 0, lotes = qtd ? Math.round(qtd / a.qtd_minima) : 0;
         return `<div class="adicrow${qtd ? " on" : ""}"><span class="adicn">${esc(a.nome)}<small>lote de ${a.qtd_minima} · ${brl2(a.valor_unit)} cada</small></span>
@@ -94,7 +95,7 @@ function memoria(r){
   return `<div id="np-memo"><div class="panel" style="margin:0;position:sticky;top:78px"><div class="pad">
     <p class="eyebrow" style="margin:0 0 4px">Total da proposta</p><p class="memtotal">${brl2(r.total)}</p>
     <p style="margin:2px 0 16px;font-size:12.5px;color:var(--ink-3);font-family:var(--mono)">${r.parcelas}× ${brl2(r.parcela)} &nbsp;·&nbsp; à vista ${brl2(r.avista)} (−${r.pctAvista}%)</p>
-    <div class="mem">${linha("Balas", brl2(r.balas), r.kg + " kg · " + categoria(np.categoria).nome.toLowerCase() + " (destaque)")}
+    <div class="mem">${linha("Balas", brl2(r.balas), r.kg + " kg × " + brl2(r.porKg) + " · " + categoria(S.categorias, np.categoria).nome + " (destaque)")}
       ${r.adic.map(a => linha(esc(a.nome), brl2(a.total), a.qtd + " un × " + brl2(a.unit))).join("")}
       ${r.extras > 0 ? linha("Horas extras", brl2(r.vHoras), r.extras + "h além das " + r.inclusas + "h") : ""}
       ${r.atExtras > 0 ? linha("Atendentes extras", brl2(r.vAtend), r.atExtras + " além da inclusa") : ""}
@@ -168,8 +169,8 @@ async function gerar(){
       lead_id: l.id, responsavel: l.responsavel, telefone: l.telefone, email: l.email || null, evento: l.evento,
       local_festa: localProposta(l), cidade: l.cidade, data_evento: l.data || null, horario: l.horario || null,
       convidados: np.convidados, horas: r.horas, categoria: np.categoria, kg_total: r.kg,
-      pacotes: [{ kg: r.kg, valor: r.balas }], valor_balas: r.balas,
-      opcoes: r.opcoes.map(o => ({ categoria: o.categoria, nome: o.nome, balas: o.balas, total: o.total, parcela: o.parcela, avista: o.avista })),
+      pacotes: [{ kg: r.kg, valor: r.balas, valor_kg: r.porKg }], valor_balas: r.balas,
+      opcoes: r.opcoes.map(o => ({ categoria: o.categoria, nome: o.nome, rotulo_pdf: o.rotulo_pdf, valor_kg: o.porKg, balas: o.balas, total: o.total, parcela: o.parcela, avista: o.avista })),
       adicionais: r.adic.map(a => ({ nome: a.nome, qtd: a.qtd, unit: a.unit, total: a.total })), valor_adicionais: r.vAdic,
       horas_extras: r.extras, valor_horas: r.vHoras,
       distancia_km: r.km || null, duracao_texto: np.duracao || null, valor_km: r.vKm, valor_deslocamento: r.vDesl,

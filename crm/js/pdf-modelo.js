@@ -1,6 +1,6 @@
 /* Proposta no modelo oficial (PDF "Fini - Carrinho").
    Páginas 1, 2, 4 e 5 vêm intactas do modelo (vetor, sem re-render).
-   Página 3 recebe a tabela dinâmica: quilos do evento × três modalidades.
+   Página 3 recebe a tabela dinâmica: quilos do evento × três categorias (rótulos, preços e quantidade da tabela comercial).
    Depende de window.PDFLib (pdf-lib) e window.fontkit. */
 
 import { VERSAO } from "./config.js";
@@ -9,12 +9,12 @@ const CAMINHOS = {
   eb:     "js/assets/fonts/Montserrat-ExtraBold.ttf?v=" + VERSAO,
   sb:     "js/assets/fonts/Montserrat-SemiBold.ttf?v=" + VERSAO
 };
-const LINHAS = [ { id: "nacional", rotulo: "NACIONAL" }, { id: "misto", rotulo: "NACIONAL E IMPORTADO" }, { id: "importado", rotulo: "IMPORTADO" } ];
 
 /* geometria medida no modelo original (pontos, origem no canto inferior esquerdo) */
 const G = {
   cx: 320.2,                                  // centro da coluna única (121,5 → 519)
-  cabecalho: { rotuloX: 43.6, rotuloY: 718.66, rotuloTam: 10.825, caixaY: 707.06, caixaH: 35.27, caixaW: 74.16, caixaR: 5.88, caixaTraco: 1.8, textoY: 715.88, textoTam: 18 },
+  rotulos: { cx: 74.9, larg: 84, tam: 10.8, cyCabecalho: 724.11, cyLinhas: [632.2, 523.53, 414.06], umaLinha: -5.45, duasLinhas: [4.5, -12.8] },
+  cabecalho: { rotuloTam: 10.825, caixaY: 707.06, caixaH: 35.27, caixaW: 74.16, caixaR: 5.88, caixaTraco: 1.8, textoY: 715.88, textoTam: 18 },
   linha: { pilulaTopo: 676.11, pilulaH: 24.47, pilulaW: 88.56, pilulaPadMin: 10, pilulaDesloc: 12.8, pilulaTextoY: 659.32, prefixoTam: 10.08, valorTam: 12.96,
            vezesY: 657.91, vezesTam: 13.68, vezesGap: 2.24,
            totalY: 638.57, totalTam: 10.8,
@@ -37,8 +37,8 @@ const brNum = (v) => Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 
 const kgTxt = (kg) => Number(kg).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " kg";
 
 /**
- * p: proposta gravada — precisa de kg_total e opcoes [{categoria, total, parcela, avista}]
- * cfg: config comercial (parcelas_cartao)
+ * p: proposta gravada — precisa de kg_total e opcoes [{categoria, rotulo_pdf, total, parcela, avista}] (ordem = linhas)
+ * cfg: config comercial (parcelas_cartao, desconto_avista, rotulo_quantidade)
  */
 export async function montarPDFModelo(p, cfg){
   const L = window.PDFLib; if (!L || !window.fontkit) throw new Error("A biblioteca do PDF não carregou. Recarregue a página.");
@@ -74,9 +74,24 @@ export async function montarPDFModelo(p, cfg){
   const caixa  = (x, y, w, h, r) => pg.pushOperators(pushGraphicsState(), L.setStrokingColor(VERM), L.setLineWidth(G.cabecalho.caixaTraco), ...caminhoArred(x, y, w, h, r), L.stroke(), popGraphicsState());
   const traco  = (x1, x2, y) => pg.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: G.linha.tracoEsp, color: BRANCO });
 
-  /* ---- cabeçalho: BALEIRO + caixa com os quilos ---- */
+  /* rótulo da coluna da esquerda: maiúsculas, termina em ":", centrado, até duas linhas; encolhe se não couber */
+  const rotulo = (txt, cy) => {
+    const Rt = G.rotulos; let t = String(txt || "").trim().toUpperCase(); if (!t.endsWith(":")) t += ":";
+    let tam = Rt.tam, linhas;
+    for (;;) {
+      linhas = []; let atual = "";
+      t.split(/\s+/).forEach(w => { const prova = atual ? atual + " " + w : w; if (larg(prova, EB, tam) <= Rt.larg || !atual) atual = prova; else { linhas.push(atual); atual = w; } });
+      linhas.push(atual);
+      if ((linhas.length <= 2 && linhas.every(l => larg(l, EB, tam) <= Rt.larg)) || tam <= 7) break;
+      tam -= 0.5;
+    }
+    const ys = linhas.length === 1 ? [cy + Rt.umaLinha] : Rt.duasLinhas.map(d => cy + d);
+    linhas.forEach((l, i) => centrado(l, Rt.cx, ys[i], EB, tam));
+  };
+
+  /* ---- cabeçalho: rótulo da quantidade + caixa com os quilos ---- */
   const C = G.cabecalho;
-  texto("BALEIRO:", C.rotuloX, C.rotuloY, EB, C.rotuloTam);
+  rotulo(cfg.rotulo_quantidade || "Quantidade de balas", G.rotulos.cyCabecalho);
   const tKg = kgTxt(p.kg_total), wKg = larg(tKg, EB, C.textoTam);
   const caixaW = Math.max(C.caixaW, wKg + 26);
   caixa(G.cx - caixaW / 2, C.caixaY, caixaW, C.caixaH, C.caixaR);
@@ -85,9 +100,9 @@ export async function montarPDFModelo(p, cfg){
   /* ---- três linhas ---- */
   const parcelas = Number(cfg.parcelas_cartao) || 4;
   const R = G.linha;
-  LINHAS.forEach((ln, i) => {
-    const o = (p.opcoes || []).find(x => x.categoria === ln.id); if (!o) return;
+  (p.opcoes || []).slice(0, 3).forEach((o, i) => {
     const dy = G.passo[i];
+    rotulo(o.rotulo_pdf || o.nome || o.categoria, G.rotulos.cyLinhas[i]);
     const parcela = o.parcela != null ? o.parcela : o.total / parcelas;
     const avista  = o.avista  != null ? o.avista  : o.total;
     // pílula de largura fixa (88,56 pt no modelo), deslocada 12,8 pt à direita do centro; "4x" encostado à esquerda

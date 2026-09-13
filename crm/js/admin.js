@@ -4,7 +4,7 @@ import * as api from "./api.js";
 import { $, $$, esc, dataHoraBR, toast, erroTexto, select } from "./ui.js";
 import { go } from "./router.js";
 
-const ROTULO_TABELA = { leads: "Lead", propostas: "Proposta", config_comercial: "Regra comercial", pacotes: "Baleiro", adicionais: "Adicional", usuarios: "Usuário" };
+const ROTULO_TABELA = { leads: "Lead", propostas: "Proposta", config_comercial: "Regra comercial", categorias: "Categoria de balas", adicionais: "Adicional", usuarios: "Usuário" };
 const ROTULO_OP = { INSERT: "criou", UPDATE: "alterou", DELETE: "apagou" };
 const IGNORAR = new Set(["atualizado_em", "criado_em", "id"]);
 

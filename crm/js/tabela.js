@@ -4,17 +4,17 @@ import * as api from "./api.js";
 import { $, $$, esc, brl2, toast, erroTexto } from "./ui.js";
 import { go } from "./router.js";
 import { recarregarComercial } from "./dados.js";
-import { categoria } from "./motores/precificacao.js";
+import { categorias } from "./motores/precificacao.js";
 
 const ROTULOS = {
   origem_endereco: "Endereço de saída do carrinho", km_valor: "Valor por km rodado (R$)",
   horas_inclusas: "Horas inclusas no pacote", hora_extra: "Valor da hora extra (R$)",
   atendentes_inclusos: "Atendentes inclusos", atendente_extra_valor: "Valor do atendente extra (R$)",
-  gramas_por_pessoa: "Gramas por pessoa (média)", kg_referencia: "Baleiro de referência p/ quilo avulso (kg)", gramas_saquinho: "Gramas por saquinho (média)",
+  gramas_por_pessoa: "Gramas por pessoa (média)", kg_minimo: "Quantidade mínima por proposta (kg)", rotulo_quantidade: "Como chamar a quantidade (tela e PDF)", gramas_saquinho: "Gramas por saquinho (média)",
   validade_dias: "Validade da proposta (dias)", desconto_avista: "Desconto à vista (%)", parcelas_cartao: "Parcelas no cartão",
   whatsapp: "WhatsApp na proposta", email: "E-mail na proposta", site: "Site na proposta", instagram: "Instagram na proposta"
 };
-const PADRAO = { atendentes_inclusos: 1, atendente_extra_valor: 0, kg_referencia: 18 };
+const PADRAO = { atendentes_inclusos: 1, atendente_extra_valor: 0, kg_minimo: 12, rotulo_quantidade: "Quantidade de balas" };
 
 export function renderTabela(){
   const host = $("#view-tabela");
@@ -24,11 +24,14 @@ export function renderTabela(){
     <div class="bar"><div><p class="eyebrow">Tabela comercial</p><h1 style="font-size:26px;margin:2px 0 0">Preços e regras</h1></div><div class="grow"></div>
       <button class="iconbtn" data-go="propostas">Voltar às propostas</button></div>
     <p class="lede" style="margin:-8px 0 22px">Tudo que o sistema usa para calcular sai daqui. Mudou preço, muda em um lugar só e vale para as propostas novas — as já geradas ficam com os valores da época.</p>
-    <div class="panel"><header><h3>Baleiros</h3><p>preço fechado por tamanho; quantidades fora da tabela usam o R$/kg do baleiro de referência (acima dele) ou do maior que couber (abaixo)</p></header><div class="pad"><div class="tablewrap">
-      <table class="data"><thead><tr><th>Categoria</th><th>Baleiro</th><th>Valor</th><th>Por kg</th></tr></thead><tbody>${
-      S.pacotes.map(p => `<tr><td>${esc(categoria(p.categoria).nome)}</td><td class="n">${Number(p.kg)} kg</td>
-        <td class="n"><input class="inline" type="number" step="0.01" min="0" data-pac-val="${esc(p.id)}" value="${Number(p.valor_total)}"></td>
-        <td class="n" style="color:var(--ink-3)">${brl2(Number(p.valor_total) / Number(p.kg))}</td></tr>`).join("")}</tbody></table></div></div></div>
+    <div class="panel"><header><h3>Categorias de balas</h3><p>sempre estas três — edite nome, descrição, rótulo do PDF e o preço por quilo</p></header><div class="pad"><div class="tablewrap">
+      <table class="data"><thead><tr><th>Nome</th><th>Descrição</th><th>Rótulo na página 3 do PDF</th><th>Preço por kg</th></tr></thead><tbody>${
+      categorias(S.categorias).map(c => `<tr>
+        <td><input class="inline" type="text" data-cat-nome="${esc(c.id)}" value="${esc(c.nome)}" style="width:100%;min-width:230px;text-align:left"></td>
+        <td><input class="inline" type="text" data-cat-desc="${esc(c.id)}" value="${esc(c.descricao || "")}" style="width:100%;min-width:260px;text-align:left" placeholder="aparece na tela e na mensagem"></td>
+        <td><input class="inline" type="text" data-cat-rotulo="${esc(c.id)}" value="${esc(c.rotulo_pdf)}" style="width:100%;min-width:230px;text-align:left"></td>
+        <td class="n"><input class="inline" type="number" step="0.01" min="0" data-cat-kg="${esc(c.id)}" value="${Number(c.valor_kg)}"> <span style="color:var(--ink-3)">/kg</span></td></tr>`).join("")}</tbody></table></div>
+      <p style="margin:12px 0 0;font-size:12.5px;color:var(--ink-3)">Valor das balas na proposta = quilos do evento × preço por kg da categoria. Mudou aqui, vale para as próximas propostas; as já geradas não mudam. O rótulo do PDF sai em maiúsculas e quebra em duas linhas quando preciso.</p></div></div>
     <div class="panel"><header><h3>Produtos adicionais</h3><p>vendidos em lotes com quantidade mínima</p></header><div class="pad"><div class="tablewrap">
       <table class="data"><thead><tr><th>Item</th><th>Qtd mínima</th><th>Valor unitário</th><th>Lote</th><th></th></tr></thead><tbody>${
       S.adicionais.map(a => `<tr><td>${esc(a.nome)}</td>
@@ -49,7 +52,11 @@ export function renderTabela(){
 
   $$("[data-go]", host).forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   const grava = async (fn) => { try { await fn(); toast("Salvo."); await recarregarComercial(); } catch (e) { toast(erroTexto(e)); } };
-  $$("[data-pac-val]", host).forEach(i => i.addEventListener("change", () => grava(() => api.salvarPacote(i.dataset.pacVal, { valor_total: Number(i.value) }))));
+  const catCampo = (attr, campo, numero) => $$(`[data-cat-${attr}]`, host).forEach(i => i.addEventListener("change", () => {
+    const v = numero ? Number(i.value) : i.value.trim();
+    if (numero ? !(v >= 0) : !v) { toast("Valor inválido."); return; }
+    grava(() => api.salvarCategoria(i.dataset["cat" + attr[0].toUpperCase() + attr.slice(1)], { [campo]: v })); }));
+  catCampo("nome", "nome"); catCampo("desc", "descricao"); catCampo("rotulo", "rotulo_pdf"); catCampo("kg", "valor_kg", true);
   $$("[data-ad-min]", host).forEach(i => i.addEventListener("change", () => grava(() => api.editarAdicional(i.dataset.adMin, { qtd_minima: Number(i.value) }))));
   $$("[data-ad-val]", host).forEach(i => i.addEventListener("change", () => grava(() => api.editarAdicional(i.dataset.adVal, { valor_unit: Number(i.value) }))));
   $$("[data-ad-del]", host).forEach(b => b.addEventListener("click", () => { if (confirm("Remover este item da tabela? Propostas já geradas não mudam.")) grava(() => api.editarAdicional(b.dataset.adDel, { ativo: false })); }));

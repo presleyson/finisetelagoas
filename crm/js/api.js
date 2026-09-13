@@ -74,13 +74,13 @@ export async function carregarComercial(){
   try { await sb().rpc("expirar_propostas"); } catch {}
   const [c, p, a, pr] = await Promise.all([
     sb().from("config_comercial").select("chave,valor"),
-    sb().from("pacotes").select("*").eq("ativo", true).order("categoria").order("kg"),
+    sb().from("categorias").select("*").order("ordem"),
     sb().from("adicionais").select("*").eq("ativo", true).order("ordem"),
     sb().from("propostas").select("*").order("criado_em", { ascending: false }).limit(300)
   ]);
   if (c.error) throw c.error;
   const cfg = {}; (c.data || []).forEach(x => { cfg[x.chave] = x.valor; });
-  return { cfg, pacotes: p.data || [], adicionais: a.data || [], propostas: pr.data || [] };
+  return { cfg, categorias: p.data || [], adicionais: a.data || [], propostas: pr.data || [] };
 }
 export async function criarProposta(d){ return ok(await sb().from("propostas").insert(d).select().single()); }
 export async function salvarProposta(id, patch){ ok(await sb().from("propostas").update(patch).eq("id", id)); }
@@ -89,7 +89,7 @@ export async function publicarPDF(nome, blob){
   return sb().storage.from("propostas").getPublicUrl(nome).data.publicUrl;
 }
 export async function salvarConfig(pares){ ok(await sb().from("config_comercial").upsert(pares, { onConflict: "chave" })); }
-export async function salvarPacote(id, patch){ ok(await sb().from("pacotes").update(patch).eq("id", id)); }
+export async function salvarCategoria(id, patch){ ok(await sb().from("categorias").update(patch).eq("id", id)); }
 export async function salvarAdicional(d){ ok(await sb().from("adicionais").upsert(d, { onConflict: "nome" })); }
 export async function editarAdicional(id, patch){ ok(await sb().from("adicionais").update(patch).eq("id", id)); }
 

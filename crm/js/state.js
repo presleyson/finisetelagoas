@@ -8,7 +8,7 @@ export const S = {
   usuarios: [],
   motivos: [],
   interacoes: {},       // lead_id -> [interacoes]
-  cfg: {}, pacotes: [], adicionais: [], propostas: [],
+  cfg: {}, categorias: [], adicionais: [], propostas: [],
   comercialOk: false,
   rota: { nome: "form", id: null },
   abertoEm: Date.now()
