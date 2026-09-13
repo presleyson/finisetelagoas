@@ -1,0 +1,40 @@
+/* O funil comercial. A ordem aqui é a ordem das colunas. */
+export const ETAPAS = [
+  { id:"novo_lead",           nome:"Novo Lead",              curto:"Novo",         cor:"var(--st-novo)",       grupo:"andamento" },
+  { id:"primeiro_contato",    nome:"Primeiro Contato",       curto:"1º contato",   cor:"var(--st-novo)",       grupo:"andamento" },
+  { id:"qualificacao",        nome:"Qualificação",           curto:"Qualificado",  cor:"var(--st-orcamento)",  grupo:"andamento" },
+  { id:"proposta_preparacao", nome:"Proposta em Preparação", curto:"Preparando",   cor:"var(--st-orcamento)",  grupo:"andamento" },
+  { id:"proposta_enviada",    nome:"Proposta Enviada",       curto:"Enviada",      cor:"var(--st-negociacao)", grupo:"andamento" },
+  { id:"em_negociacao",       nome:"Em Negociação",          curto:"Negociando",   cor:"var(--st-negociacao)", grupo:"andamento" },
+  { id:"aguardando_cliente",  nome:"Aguardando Cliente",     curto:"Aguardando",   cor:"var(--st-negociacao)", grupo:"andamento" },
+  { id:"venda_fechada",       nome:"Venda Fechada",          curto:"Fechada",      cor:"var(--st-ganho)",      grupo:"ganho" },
+  { id:"evento_realizado",    nome:"Evento Realizado",       curto:"Realizado",    cor:"var(--st-ganho)",      grupo:"ganho" },
+  { id:"venda_perdida",       nome:"Venda Perdida",          curto:"Perdida",      cor:"var(--st-perdido)",    grupo:"perdido" }
+];
+const LEGADO = { novo:"novo_lead", orcamento:"proposta_enviada", negociacao:"em_negociacao",
+                 ganho:"venda_fechada", pedido:"venda_fechada", perdido:"venda_perdida" };
+export const normaliza = (e) => LEGADO[e] || e || "novo_lead";
+export const etapa  = (id) => ETAPAS.find(e => e.id === normaliza(id)) || ETAPAS[0];
+export const classe = (l) => etapa(l.etapa).grupo;          // andamento | ganho | perdido
+export const ativo  = (l) => !["venda_perdida","evento_realizado"].includes(normaliza(l.etapa));
+
+export const TIPOS_INTERACAO = [
+  { id:"whatsapp",         nome:"WhatsApp",           icone:"💬" },
+  { id:"ligacao",          nome:"Ligação",            icone:"📞" },
+  { id:"email",            nome:"E-mail",             icone:"✉️" },
+  { id:"reuniao",          nome:"Reunião",            icone:"🗓️" },
+  { id:"presencial",       nome:"Contato presencial", icone:"🤝" },
+  { id:"instagram",        nome:"Instagram",          icone:"📸" },
+  { id:"formulario",       nome:"Formulário do site", icone:"📝" },
+  { id:"observacao",       nome:"Observação interna", icone:"📌" },
+  { id:"proposta_enviada", nome:"Proposta enviada",   icone:"📄" },
+  { id:"negociacao",       nome:"Negociação",         icone:"⚖️" },
+  { id:"follow_up",        nome:"Follow-up",          icone:"🔁" },
+  { id:"mudanca_etapa",    nome:"Mudança de etapa",   icone:"➡️" }
+];
+export const tipoInteracao = (id) => TIPOS_INTERACAO.find(t => t.id === id) || { id, nome:id, icone:"•" };
+
+export const ORIGENS = [
+  ["site","Formulário do site"],["whatsapp","WhatsApp"],["instagram","Instagram"],
+  ["indicacao","Indicação"],["presencial","Presencial"],["outro","Outro"]
+];
