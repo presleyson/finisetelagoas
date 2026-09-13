@@ -4,7 +4,8 @@ import * as api from "./api.js";
 import { $, $$, esc, dataHoraBR, toast, erroTexto, select } from "./ui.js";
 import { go } from "./router.js";
 
-const ROTULO_TABELA = { leads: "Lead", propostas: "Proposta", config_comercial: "Regra comercial", categorias: "Categoria de balas", adicionais: "Adicional", usuarios: "Usuário" };
+const ROTULO_TABELA = { leads: "Lead", propostas: "Proposta", config_comercial: "Regra comercial", categorias: "Categoria de balas", adicionais: "Adicional", usuarios: "Usuário", notificacoes: "Notificação" };
+const STATUS_NOTIF = { pendente: ["Pendente", "var(--st-orcamento)"], enviado: ["Enviado", "var(--st-ganho)"], erro: ["Erro", "var(--st-perdido)"] };
 const ROTULO_OP = { INSERT: "criou", UPDATE: "alterou", DELETE: "apagou" };
 const IGNORAR = new Set(["atualizado_em", "criado_em", "id"]);
 
@@ -48,6 +49,10 @@ export function renderAdmin(){
         <div class="field" style="max-width:100px"><label for="mo-ordem">Ordem</label><input id="mo-ordem" type="number" min="1" value="${(S.motivos.reduce((s, m) => Math.max(s, m.ordem), 0) || 0) + 10}"></div>
         <button class="btn sm" id="mo-add">Adicionar</button></div></div></div>
 
+    <div class="panel"><header><h3>Notificações por e-mail</h3><p>aviso automático de cada lead novo — últimas 50</p><button class="linkbtn" id="nt-load">atualizar</button></header><div class="pad">
+      <div id="nt-lista" class="tablewrap"><div class="empty" style="padding:30px">Carregando…</div></div>
+      <p style="margin:12px 0 0;font-size:12.5px;color:var(--ink-3)">Destinatário e remetente ficam na <button class="linkbtn" data-go="tabela">Tabela comercial</button>. Um aviso com erro pode ser reenviado aqui; o cadastro do lead nunca depende do e-mail.</p></div></div>
+
     <div class="panel"><header><h3>Auditoria</h3><p>últimas 200 alterações</p></header><div class="pad">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
         <div class="field" style="max-width:220px"><label for="au-tabela">Registro</label>${select("au-tabela", [["", "Tudo"], ...Object.entries(ROTULO_TABELA)], "")}</div>
@@ -83,6 +88,26 @@ export function renderAdmin(){
           <td style="font-size:12.5px;color:var(--ink-2);max-width:520px;overflow-wrap:anywhere">${esc(resumoAlteracao(a))}</td></tr>`).join("")}</tbody></table>`;
     } catch (e) { box.innerHTML = `<p class="err">${esc(erroTexto(e))}</p>`; }
   };
+  const carregarNotificacoes = async () => {
+    const box = $("#nt-lista"); if (!box) return;
+    try {
+      const lista = await api.listarNotificacoes();
+      if (!lista.length) { box.innerHTML = '<div class="empty" style="padding:30px">Nenhum aviso enviado ainda — o primeiro sai no próximo lead novo.</div>'; return; }
+      box.innerHTML = `<table class="data"><thead><tr><th>Quando</th><th>Lead</th><th>Para</th><th>Status</th><th>Detalhe</th><th></th></tr></thead><tbody>${
+        lista.map(n => { const st = STATUS_NOTIF[n.status] || [n.status, "var(--ink-3)"]; const l = S.leads.find(x => x.id === n.lead_id);
+          return `<tr><td style="white-space:nowrap">${dataHoraBR(n.criado_em)}</td>
+            <td>${l ? `<button class="linkbtn" data-go="lead/${esc(l.id)}">${esc(l.responsavel)}</button>` : '<span style="color:var(--ink-3)">lead apagado</span>'}</td>
+            <td style="color:var(--ink-3)">${esc(n.destinatario || "")}</td>
+            <td><span class="pill" style="color:${st[1]};border-color:${st[1]}">${st[0]}</span></td>
+            <td style="font-size:12.5px;color:var(--ink-2);max-width:360px;overflow-wrap:anywhere">${n.status === "enviado" ? "entregue ao provedor " + dataHoraBR(n.enviado_em) : esc(n.resposta || "aguardando o disparo")}${n.tentativas > 1 ? ` · ${n.tentativas} tentativas` : ""}</td>
+            <td>${n.status === "erro" ? `<button class="linkbtn" data-nt-re="${esc(n.id)}">reenviar</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
+      $$("[data-nt-re]", box).forEach(b => b.addEventListener("click", async () => {
+        try { await api.reenviarNotificacao(b.dataset.ntRe); toast("Reenvio solicitado."); setTimeout(carregarNotificacoes, 2500); } catch (e) { toast(erroTexto(e)); } }));
+      $$("[data-go]", box).forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+    } catch (e) { box.innerHTML = `<p class="err">${esc(erroTexto(e))}</p>`; }
+  };
+  $("#nt-load").addEventListener("click", carregarNotificacoes);
+  carregarNotificacoes();
   $("#au-load").addEventListener("click", carregarAuditoria);
   $("#au-tabela").addEventListener("change", carregarAuditoria);
   carregarAuditoria();

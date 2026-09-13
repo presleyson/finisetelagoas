@@ -69,6 +69,10 @@ export async function auditoria(filtro = {}){
   return ok(await q);
 }
 
+/* ---------- notificações por e-mail ---------- */
+export async function listarNotificacoes(){ return ok(await sb().from("notificacoes").select("*").order("criado_em", { ascending: false }).limit(50)); }
+export async function reenviarNotificacao(id){ ok(await sb().from("notificacoes").update({ status: "pendente", resposta: null }).eq("id", id)); }
+
 /* ---------- comercial ---------- */
 export async function carregarComercial(){
   try { await sb().rpc("expirar_propostas"); } catch {}

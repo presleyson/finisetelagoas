@@ -12,7 +12,7 @@ const ROTULOS = {
   atendentes_inclusos: "Atendentes inclusos", atendente_extra_valor: "Valor do atendente extra (R$)",
   gramas_por_pessoa: "Gramas por pessoa (média)", kg_minimo: "Quantidade mínima por proposta (kg)", rotulo_quantidade: "Como chamar a quantidade (tela e PDF)", gramas_saquinho: "Gramas por saquinho (média)",
   validade_dias: "Validade da proposta (dias)", desconto_avista: "Desconto à vista (%)", parcelas_cartao: "Parcelas no cartão",
-  whatsapp: "WhatsApp na proposta", email: "E-mail na proposta", site: "Site na proposta", instagram: "Instagram na proposta"
+  email_notificacao: "E-mail que recebe os novos leads", email_remetente: "Remetente do aviso de novo lead", whatsapp: "WhatsApp na proposta", email: "E-mail na proposta", site: "Site na proposta", instagram: "Instagram na proposta"
 };
 const PADRAO = { atendentes_inclusos: 1, atendente_extra_valor: 0, kg_minimo: 12, rotulo_quantidade: "Quantidade de balas" };
 
