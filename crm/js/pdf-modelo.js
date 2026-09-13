@@ -3,10 +3,11 @@
    Página 3 recebe a tabela dinâmica: quilos do evento × três modalidades.
    Depende de window.PDFLib (pdf-lib) e window.fontkit. */
 
+import { VERSAO } from "./config.js";
 const CAMINHOS = {
-  modelo: "js/assets/modelo-base.pdf",
-  eb:     "js/assets/fonts/Montserrat-ExtraBold.ttf",
-  sb:     "js/assets/fonts/Montserrat-SemiBold.ttf"
+  modelo: "js/assets/modelo-base.pdf?v=" + VERSAO,
+  eb:     "js/assets/fonts/Montserrat-ExtraBold.ttf?v=" + VERSAO,
+  sb:     "js/assets/fonts/Montserrat-SemiBold.ttf?v=" + VERSAO
 };
 const LINHAS = [ { id: "nacional", rotulo: "NACIONAL" }, { id: "misto", rotulo: "NACIONAL E IMPORTADO" }, { id: "importado", rotulo: "IMPORTADO" } ];
 
