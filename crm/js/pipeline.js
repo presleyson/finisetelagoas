@@ -9,7 +9,7 @@ import { recarregarLeads } from "./dados.js";
 const filtro = { q: "", cidade: "__all", resp: "__all" };
 
 export function alertaLead(l){
-  if (!["venda_fechada","venda_perdida","evento_realizado"].includes(normaliza(l.etapa))) {
+  if (!["venda_fechada","venda_perdida"].includes(normaliza(l.etapa))) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     if (l.proxima_data) {
       const d = new Date(l.proxima_data);
@@ -144,7 +144,7 @@ function novoLeadManual(){
       responsavel: $("#nl-resp").value.trim(), telefone: $("#nl-tel").value.trim(), origem: $("#nl-origem").value,
       evento: $("#nl-evento").value.trim(), cidade: $("#nl-cidade").value.trim(), data: $("#nl-data").value,
       local_festa: $("#nl-local").value.trim() || "a definir", nome_local: $("#nl-local").value.trim() || null,
-      uf: "MG", etapa: "primeiro_contato", responsavel_id: S.usuario ? S.usuario.id : null
+      uf: "MG", etapa: "novo_lead", responsavel_id: S.usuario ? S.usuario.id : null
     };
     if (!d.responsavel || !d.telefone || !d.evento || !d.cidade || !d.data) { toast("Preencha os campos com *."); return; }
     try {

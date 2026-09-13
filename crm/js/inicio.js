@@ -15,7 +15,7 @@ export function renderInicio(){
 
   const atrasados  = abertos.filter(l => l.proxima_data && new Date(l.proxima_data) < hoje0);
   const hoje       = abertos.filter(l => l.proxima_data && new Date(l.proxima_data) >= hoje0 && new Date(l.proxima_data) < em(hoje0, 1));
-  const aguardando = abertos.filter(l => ["proposta_enviada","aguardando_cliente"].includes(normaliza(l.etapa)));
+  const aguardando = abertos.filter(l => normaliza(l.etapa) === "aguardando_cliente");
   const parados    = abertos.filter(l => !l.proxima_data && !["venda_fechada"].includes(normaliza(l.etapa)) &&
                                      Date.now() - new Date(l.ultimo_contato_em || l.criado_em) > 7 * 864e5);
   const eventos    = all.filter(l => ["venda_fechada"].includes(normaliza(l.etapa)) && l.data && l.data >= iso(0) && l.data <= iso(15))
