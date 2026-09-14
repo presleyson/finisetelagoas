@@ -1218,6 +1218,7 @@ var CRM = {
   idempotencia: false,
 
   whatsapp: "5531998065179",
+  whatsappVisivel: "(31) 99806-5179",   /* como aparece escrito na tela */
   tempoLimiteMs: 15000
 };
 
@@ -1466,7 +1467,8 @@ var CRM = {
     retorno.innerHTML =
       "<h4>Solicitação registrada! 🍬</h4>" +
       "<p>Recebemos os dados da sua festa e nossa equipe comercial já está com eles. " +
-      "Retornamos em até 24 horas no WhatsApp <strong>" + d.telefone + "</strong>.</p>" +
+      "Retornamos em até 24 horas. Precisa falar agora? Chame no " +
+      "<strong>" + CRM.whatsappVisivel + "</strong>.</p>" +
       "<a class='btn btn-zap' href='https://wa.me/" + CRM.whatsapp + "' target='_blank' rel='noopener'>Falar agora no WhatsApp</a>" +
       "<span class='retorno__protocolo'>Código da solicitação: " + ref + "</span>";
     retorno.hidden = false;
