@@ -20,7 +20,7 @@ const n = (v, pad) => (v == null || v === "" || isNaN(Number(v))) ? pad : Number
 
 /** Quilos necessários: convidados × gramas por pessoa. */
 export function kgNecessarios(convidados, cfg){
-  const g = n(cfg.gramas_por_pessoa, n(cfg.gramas_saquinho, 180));
+  const g = n(cfg.gramas_por_pessoa, n(cfg.gramas_saquinho, 150));
   if (!convidados || convidados <= 0) return 0;
   return Math.round((convidados * g / 1000) * 10) / 10;
 }
