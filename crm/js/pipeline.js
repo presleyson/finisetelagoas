@@ -22,14 +22,25 @@ export function alertaLead(l){
   return null;
 }
 
+/* Valor da negociação: o que foi gravado no lead ou, se ainda não houver, o total da proposta mais recente dele. */
+export function valorNegociado(l){
+  if (Number(l.valor) > 0) return Number(l.valor);
+  const props = (S.propostas || []).filter(p => p.lead_id === l.id && p.status !== "recusada" && p.status !== "expirada");
+  if (!props.length) return 0;
+  const aprovada = props.find(p => p.status === "aprovada");
+  const p = aprovada || props.slice().sort((a, b) => (b.numero || 0) - (a.numero || 0))[0];
+  return Number(p.valor_total) || 0;
+}
+
 export function cardLead(l){
   const pessoas = (Number(l.criancas) || 0) + (Number(l.adultos) || 0);
-  const a = alertaLead(l);
+  const a = alertaLead(l), v = valorNegociado(l);
   return `<button class="lead" data-id="${esc(l.id)}" draggable="true">
     <span class="who">${esc(l.responsavel || "Sem nome")}</span>
     <span class="ev">${esc(l.evento || "")}</span>
     <span class="meta"><span>${esc(l.cidade || "—")}</span><span>${dataBR(l.data)}</span>
-      ${pessoas ? `<span>${pessoas} pess.</span>` : ""}${l.valor ? `<span class="val">${brl(l.valor)}</span>` : ""}</span>
+      ${pessoas ? `<span>${pessoas} pess.</span>` : ""}</span>
+    ${v ? `<span class="val">${brl(v)}</span>` : `<span class="val vazio">sem valor</span>`}
     ${a ? `<span class="alerta ${a.cls}">${a.txt}</span>` : ""}
   </button>`;
 }
@@ -58,7 +69,7 @@ export function renderPipeline(){
   h += '<div class="board">';
   ETAPAS.forEach(s => {
     const items = vis.filter(l => normaliza(l.etapa) === s.id);
-    const soma = items.reduce((a, l) => a + (Number(l.valor) || 0), 0);
+    const soma = items.reduce((a, l) => a + valorNegociado(l), 0);
     h += `<div class="col" data-stage="${s.id}" style="--stc:${s.cor}">
       <div class="col-head"><div class="t"><h3>${s.nome}</h3><span class="n">${items.length}</span></div>
       <span class="v">${soma ? brl(soma) : "&nbsp;"}</span></div>

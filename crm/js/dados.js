@@ -19,7 +19,7 @@ export async function recarregarComercial(){
   try {
     const c = await api.carregarComercial();
     Object.assign(S, c); S.comercialOk = true;
-    if (["propostas","tabela","lead"].includes(S.rota.nome)) repintar();
+    if (["propostas","tabela","lead","pipeline","inicio"].includes(S.rota.nome)) repintar();
   } catch { S.comercialOk = false; }
 }
 export async function carregarApoio(){

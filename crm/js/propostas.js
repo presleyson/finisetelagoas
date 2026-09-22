@@ -5,7 +5,7 @@ import * as api from "./api.js";
 import { ativo } from "./etapas.js";
 import { $, $$, esc, brl2, dataBR, toast, erroTexto, abrirGaveta, fecharGaveta, waLink, select } from "./ui.js";
 import { go } from "./router.js";
-import { recarregarComercial } from "./dados.js";
+import { recarregarComercial, recarregarLeads } from "./dados.js";
 import { categoria, precificar } from "./motores/precificacao.js";
 import { calcularRota, temMaps } from "./motores/rota.js";
 import { montarPDFModelo, preCarregarModelo } from "./pdf-modelo.js";
@@ -60,7 +60,7 @@ export function renderPropostas(){
     h += `<div class="paper"><div class="paper-sec"><header><h3>2. ${esc(rotKg)}</h3><span>${np.kg ? "ajustada por você" : "calculada pelo sistema"}</span></header>
       <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
         <div class="field" style="max-width:150px"><label for="np-kg">${esc(rotKg)} (kg)</label><input id="np-kg" type="number" min="1" step="1" value="${r.kg}"></div>
-        <p style="margin:0 0 6px;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 180))} g = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b>${r.kg > r.kgNec ? " → arredondado para <b>" + r.kg + " kg</b>" + (r.kgMin >= r.kg && r.kgNec < r.kg - 1 ? " (mínimo da tabela)" : "") : ""}.` : "Informe os convidados para o sistema calcular."}${np.kg ? ' · <button class="linkbtn" id="np-kg-auto">voltar ao cálculo</button>' : ""}</p>
+        <p style="margin:0 0 6px;font-size:13.5px;color:var(--ink-2)">${np.convidados ? `<b>${np.convidados} convidados</b> × ${cfgNum("gramas_por_pessoa", cfgNum("gramas_saquinho", 150))} g = <b>${r.kgNec.toLocaleString("pt-BR")} kg</b>${r.kg > r.kgNec ? " → arredondado para <b>" + r.kg + " kg</b>" + (r.kgMin >= r.kg && r.kgNec < r.kg - 1 ? " (mínimo da tabela)" : "") : ""}.` : "Informe os convidados para o sistema calcular."}${np.kg ? ' · <button class="linkbtn" id="np-kg-auto">voltar ao cálculo</button>' : ""}</p>
       </div></div>
     <div class="paper-sec"><header><h3>3. As três categorias de balas</h3><span>vão todas para a proposta — marque a que vale para o pipeline</span></header><div style="display:flex;flex-direction:column;gap:8px">${
       r.opcoes.map(o => `<button class="catbtn${np.categoria === o.categoria ? " on" : ""}" data-cat="${o.categoria}"><span class="catn">${esc(o.nome)}</span>
@@ -148,7 +148,12 @@ function ligar(){
     np.calculando = false; renderPropostas(); });
   $$("[data-go]", host).forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
   $$("[data-st-prop]", host).forEach(s => s.addEventListener("change", async () => {
-    try { await api.salvarProposta(s.dataset.stProp, { status: s.value }); toast("Status atualizado."); recarregarComercial(); } catch (e) { toast(erroTexto(e)); } }));
+    try {
+      await api.salvarProposta(s.dataset.stProp, { status: s.value }); toast("Status atualizado.");
+      const p = S.propostas.find(x => x.id === s.dataset.stProp);
+      if (p && p.lead_id && ["aprovada", "enviada", "negociacao"].includes(s.value)) await atualizarValorLead(p.lead_id, p.valor_total);
+      recarregarComercial();
+    } catch (e) { toast(erroTexto(e)); } }));
   $$("[data-wa-prop]", host).forEach(b => b.addEventListener("click", () => { const p = S.propostas.find(x => x.id === b.dataset.waProp); if (p) abrirEnvio(p); }));
   $$("[data-del-prop]", host).forEach(b => b.addEventListener("click", () => { const p = S.propostas.find(x => x.id === b.dataset.delProp); if (p) confirmarExclusao(p); }));
   ligarMemo();
@@ -156,6 +161,12 @@ function ligar(){
 function ligarMemo(){
   const g = $("#np-gerar"); if (g) g.addEventListener("click", gerar);
   const l = $("#np-limpar"); if (l) l.addEventListener("click", () => { np = nova(); renderPropostas(); });
+}
+
+/* Valor da negociação: o total em destaque da proposta vai para o lead (leads.valor) e aparece no pipeline. Nunca derruba a geração. */
+async function atualizarValorLead(leadId, valor){
+  if (!leadId || !(Number(valor) > 0)) return;
+  try { await api.salvarLead(leadId, { valor: Math.round(Number(valor) * 100) / 100 }); recarregarLeads(); } catch { /* valor é informativo */ }
 }
 
 async function gerar(){
@@ -182,6 +193,7 @@ async function gerar(){
     const nome = `proposta-${String(prop.numero).padStart(4, "0")}-${prop.id.slice(0, 8)}.pdf`;
     const url = await api.publicarPDF(nome, blob);
     await api.salvarProposta(prop.id, { pdf_url: url }); prop.pdf_url = url;
+    await atualizarValorLead(l.id, r.total);   // o valor negociado passa a aparecer no pipeline
     np.salvando = false; await recarregarComercial(); np = nova(); renderPropostas(); abrirEnvio(prop);
   } catch (e) { np.salvando = false; renderPropostas(); toast(erroTexto(e)); }
 }

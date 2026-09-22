@@ -7,7 +7,7 @@ import { $, $$, esc, brl2, dataBR, dataHoraBR, relativo, toast, erroTexto, abrir
          waLink, maskTel, maskCep, select, iso } from "./ui.js";
 import { go } from "./router.js";
 import { recarregarLeads } from "./dados.js";
-import { pedirMotivo } from "./pipeline.js";
+import { pedirMotivo, valorNegociado } from "./pipeline.js";
 import { aplicarCep } from "./form.js";
 
 export function enderecoEvento(l){
@@ -50,6 +50,7 @@ export async function renderLead({ id }){
         <p class="eyebrow"><button class="linkbtn" data-go="pipeline">Pipeline</button> · lead ${(l.origem && ORIGENS.find(o => o[0] === l.origem) || ["", "cadastrado"])[1].toLowerCase()} ${relativo(l.criado_em)}</p>
         <h1 style="font-size:30px;margin:4px 0 2px">${esc(l.responsavel)}</h1>
         <p style="margin:0;color:var(--ink-2)">${esc(l.evento || "")}${l.data ? " · " + dataBR(l.data) : ""}${l.horario ? " às " + esc(l.horario) : ""}</p>
+        ${valorNegociado(l) ? `<p style="margin:6px 0 0;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)">Valor da negociação: ${brl2(valorNegociado(l))}${Number(l.valor) > 0 ? "" : ' <span style="font-weight:500;color:var(--ink-3)">(última proposta)</span>'}</p>` : ""}
       </div>
       <div class="lead-actions">
         <div class="stagesel" style="--stc:${et.cor}">
