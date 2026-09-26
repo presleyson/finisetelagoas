@@ -57,7 +57,7 @@ export function renderPipeline(){
     (!q || [l.responsavel, l.evento, l.local_festa, l.nome_local, l.cidade, l.telefone].join(" ").toLowerCase().includes(q)));
 
   let h = `<div class="bar">
-    <div><p class="eyebrow">Pipeline</p><h1 style="font-size:26px;margin:2px 0 0">${all.length} lead${all.length === 1 ? "" : "s"}</h1></div>
+    <div><p class="eyebrow">Pipeline · em ordem da data do evento</p><h1 style="font-size:26px;margin:2px 0 0">${all.length} lead${all.length === 1 ? "" : "s"}</h1></div>
     <div class="grow"></div>
     <div class="search"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
       <input id="q" type="text" placeholder="Buscar nome, evento, local…" value="${esc(filtro.q)}"></div>

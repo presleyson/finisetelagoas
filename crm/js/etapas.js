@@ -37,3 +37,14 @@ export const ORIGENS = [
   ["site","Formulário do site"],["whatsapp","WhatsApp"],["instagram","Instagram"],
   ["indicacao","Indicação"],["presencial","Presencial"],["outro","Outro"]
 ];
+
+/** Ordem cronológica pela data do evento: o mais próximo primeiro; sem data vai para o fim.
+ *  Empate: quem entrou por último primeiro. Usado em toda lista de oportunidades. */
+export function porDataEvento(a, b){
+  const da = String(a.data || ""), db = String(b.data || "");
+  if (da && db && da !== db) return da < db ? -1 : 1;
+  if (da && !db) return -1;
+  if (!da && db) return 1;
+  return String(b.criado_em || "").localeCompare(String(a.criado_em || ""));
+}
+export const ordenarPorEvento = (lista) => lista.slice().sort(porDataEvento);

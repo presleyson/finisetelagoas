@@ -1,7 +1,7 @@
 /* A única camada que fala com o Supabase. Telas nunca chamam sb.from() diretamente. */
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 import { S } from "./state.js";
-import { normaliza } from "./etapas.js";
+import { normaliza, ordenarPorEvento } from "./etapas.js";
 
 function cliente(){
   if (S.sb) return S.sb;
@@ -30,8 +30,8 @@ export async function meuUsuario(authUser){
 
 /* ---------- leads ---------- */
 export async function listarLeads(){
-  const d = ok(await sb().from("leads").select("*").order("criado_em", { ascending: false }));
-  return d.map(l => ({ ...l, etapa: normaliza(l.etapa) }));
+  const d = ok(await sb().from("leads").select("*").order("data", { ascending: true, nullsFirst: false }).order("criado_em", { ascending: false }));
+  return ordenarPorEvento(d.map(l => ({ ...l, etapa: normaliza(l.etapa) })));   // evento mais próximo primeiro; sem data no fim
 }
 export const criarLeadPublico = (d) => sb().from("leads").insert(d);
 export async function criarLead(d){ return ok(await sb().from("leads").insert(d).select().single()); }

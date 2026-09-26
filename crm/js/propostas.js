@@ -2,7 +2,7 @@
    grava, gera o PDF, publica e abre a confirmação do WhatsApp. */
 import { S, rows, admin } from "./state.js";
 import * as api from "./api.js";
-import { ativo } from "./etapas.js";
+import { ativo, ordenarPorEvento } from "./etapas.js";
 import { $, $$, esc, brl2, dataBR, toast, erroTexto, abrirGaveta, fecharGaveta, waLink, select } from "./ui.js";
 import { go } from "./router.js";
 import { recarregarComercial, recarregarLeads } from "./dados.js";
@@ -33,7 +33,7 @@ export function renderPropostas(){
   preCarregarModelo();
   if (S.propostaLead) { escolherLead(S.propostaLead); S.propostaLead = null; }
   const r = conta();
-  const leadsDisp = rows().filter(ativo).sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
+  const leadsDisp = ordenarPorEvento(rows().filter(ativo));
 
   let h = `<div class="bar"><div><p class="eyebrow">Propostas</p><h1 style="font-size:26px;margin:2px 0 0">Montar uma proposta</h1></div><div class="grow"></div>
     ${admin() ? '<button class="iconbtn" data-go="tabela">Tabela comercial</button>' : ""}</div>
